@@ -6,7 +6,12 @@ import CelebrationGallery from './components/CelebrationGallery';
 import SendPage from './components/SendPage';
 
 function Home() {
-  const [isCelebration, setIsCelebration] = useState(false);
+  // Target date: April 22, 2026 UTC+1 (Algeria/Tunisia time)
+  const [targetDate] = useState(() => new Date('2026-04-22T00:00:00+01:00'));
+
+  const [isCelebration, setIsCelebration] = useState(() => {
+    return new Date() >= new Date('2026-04-22T00:00:00+01:00');
+  });
   const navigate = useNavigate();
   
   // Secret Early Access States
@@ -22,9 +27,7 @@ function Home() {
       setPasscodeError('Incorrect passcode');
     }
   };
-  
-  // Target date: April 22, 2026
-  const [targetDate] = useState(() => new Date('2026-04-22T00:00:00'));
+
 
   useEffect(() => {
     if (isCelebration) {
