@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { db, storage } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { supabase } from '../supabase';
 import { Camera, StopCircle, RefreshCw, Send, CheckCircle } from 'lucide-react';
 
 const MAX_RECORDING_TIME = 30; // 30 seconds limit
@@ -27,7 +25,6 @@ export default function SendPage() {
 
   // Submission States
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [isSuccess, setIsSuccess] = useState(false);
 
   // Stop camera helper
@@ -122,7 +119,8 @@ export default function SendPage() {
       durationRef.current = actualDuration;
 
       const blob = new Blob(recordedChunks.current, { type: options.mimeType });
-      const file = new File([blob], `video-${Date.now()}.webm`, { type: options.mimeType });
+      // Create a webm file regardless (browsers mostly support webm/mp4, but we force webm extension for consistency in upload)
+      const file = new File([blob], `video.webm`, { type: options.mimeType });
       
       setVideoFile(file);
       const url = URL.createObjectURL(blob);
@@ -154,56 +152,48 @@ export default function SendPage() {
   const handleSend = async () => {
     if (!videoFile) return;
     setIsSubmitting(true);
-    setProgress(0);
     
     try {
-      let videoUrl = null;
+      // Generate a unique filename using timestamp and a random string
+      const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}.webm`;
+      const filePath = `videos/${uniqueName}`;
 
-      // Handle missing API Key (dev env mock mode)
-      if (!import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY") {
-        videoUrl = videoPreviewUrl;
-      } else {
-        const storageRef = ref(storage, `videos/${Date.now()}_${videoFile.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, videoFile);
-
-        await new Promise((resolve, reject) => {
-          uploadTask.on(
-            'state_changed',
-            (snapshot) => {
-              const p = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setProgress(p); 
-            },
-            (error) => {
-              console.error("Storage Error:", error);
-              reject(error);
-            },
-            async () => {
-              try {
-                videoUrl = await getDownloadURL(uploadTask.snapshot.ref);
-                resolve();
-              } catch (err) {
-                reject(err);
-              }
-            }
-          );
+      // 1. Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('videos')
+        .upload(filePath, videoFile, {
+          cacheControl: '3600',
+          upsert: false
         });
+
+      if (uploadError) {
+        throw new Error(`Upload Error: ${uploadError.message}`);
       }
 
-      // Save to 'videos' collection
-      if (import.meta.env.VITE_FIREBASE_API_KEY && import.meta.env.VITE_FIREBASE_API_KEY !== "YOUR_API_KEY") {
-        await addDoc(collection(db, "videos"), {
-          videoUrl: videoUrl,
-          duration: durationRef.current,
-          createdAt: serverTimestamp(),
-        });
-      } else {
-         // Mock save
-         const local = JSON.parse(localStorage.getItem('mockVideos') || '[]');
-         local.push({ id: Date.now().toString(), videoUrl: videoPreviewUrl, duration: durationRef.current, createdAt: new Date() });
-         localStorage.setItem('mockVideos', JSON.stringify(local));
+      // 2. Retrieve the public URL
+      const { data: urlData } = supabase.storage
+        .from('videos')
+        .getPublicUrl(filePath);
+
+      if (!urlData || !urlData.publicUrl) {
+         throw new Error("Failed to retrieve public URL after upload.");
       }
 
-      setProgress(100);
+      const publicUrl = urlData.publicUrl;
+
+      // 3. Insert metadata row into Supabase 'videos' table
+      const { error: dbError } = await supabase
+        .from('videos')
+        .insert([{ 
+           video_url: publicUrl, 
+           duration: durationRef.current 
+           // created_at defaults to now() in Supabase
+        }]);
+
+      if (dbError) {
+        throw new Error(`Database Error: ${dbError.message}`);
+      }
+
       setIsSuccess(true);
       
       setTimeout(() => {
@@ -212,7 +202,7 @@ export default function SendPage() {
 
     } catch (err) {
       console.error(err);
-      alert("Failed to submit recording. Please check your connection and try again.");
+      alert(`Failed to submit recording. ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -268,10 +258,8 @@ export default function SendPage() {
         {/* Progress overlay while submitting */}
         {isSubmitting && (
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 20 }}>
-            <div style={{ width: '80%', height: '8px', background: '#333', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent-primary)', transition: 'width 0.2s' }} />
-            </div>
-            <p style={{ color: 'white', marginTop: '15px' }}>Uploading... {Math.round(progress)}%</p>
+            <div style={{ width: '50px', height: '50px', border: '4px solid rgba(255,255,255,0.3)', borderTop: '4px solid var(--accent-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            <p style={{ color: 'white', marginTop: '15px' }}>Uploading...</p>
           </div>
         )}
       </div>
@@ -336,6 +324,10 @@ export default function SendPage() {
           0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
           70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
           100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </div>

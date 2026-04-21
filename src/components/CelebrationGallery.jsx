@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Confetti from 'react-confetti';
-import { db } from '../firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { X, ChevronUp, ChevronDown } from 'lucide-react';
+import { supabase } from '../supabase';
+import { X } from 'lucide-react';
 
 export default function CelebrationGallery() {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [windowDimension, setWindowDimension] = useState({ width: window.innerWidth, height: window.innerHeight });
   
   // Full-screen viewer state
@@ -27,23 +27,19 @@ export default function CelebrationGallery() {
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        const q = query(collection(db, "videos"), orderBy("createdAt", "desc"));
-        const querySnapshot = await getDocs(q);
-        const fetchedVideos = [];
-        querySnapshot.forEach((doc) => {
-          fetchedVideos.push({ id: doc.id, ...doc.data() });
-        });
-        
-        if (fetchedVideos.length === 0) {
-           const local = JSON.parse(localStorage.getItem('mockVideos') || '[]');
-           setVideos(local);
-        } else {
-           setVideos(fetchedVideos);
+        const { data, error: dbError } = await supabase
+          .from('videos')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (dbError) {
+          throw new Error(dbError.message);
         }
-      } catch (error) {
-        console.error("Error fetching videos", error);
-        const local = JSON.parse(localStorage.getItem('mockVideos') || '[]');
-        setVideos(local);
+        
+        setVideos(data || []);
+      } catch (err) {
+        console.error("Error fetching videos", err);
+        setError("Could not load videos. Please check your connection.");
       } finally {
         setLoading(false);
       }
@@ -67,6 +63,10 @@ export default function CelebrationGallery() {
 
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--accent-primary)', fontSize: '2rem' }}>Loading Surprises...</div>;
+  }
+
+  if (error) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#ef4444', fontSize: '1.5rem', padding: '20px', textAlign: 'center' }}>{error}</div>;
   }
 
   return (
@@ -101,7 +101,7 @@ export default function CelebrationGallery() {
         }}>
           {videos.map((vid, idx) => (
             <div 
-              key={vid.id || idx} 
+              key={vid.id} 
               onClick={() => openViewer(idx)}
               style={{ 
                 width: '100%', 
@@ -117,7 +117,7 @@ export default function CelebrationGallery() {
               onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
               <video 
-                src={vid.videoUrl} 
+                src={vid.video_url} 
                 preload="metadata"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
@@ -144,7 +144,7 @@ export default function CelebrationGallery() {
           <div style={{ flex: 1, overflowY: 'scroll', scrollSnapType: 'y mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="no-scrollbar">
             {videos.map((vid, idx) => (
               <div 
-                key={`viewer-${vid.id || idx}`}
+                key={`viewer-${vid.id}`}
                 style={{
                   height: '100vh',
                   width: '100vw',
@@ -156,12 +156,12 @@ export default function CelebrationGallery() {
                 }}
               >
                 <video 
-                  src={vid.videoUrl} 
+                  src={vid.video_url} 
                   controls
                   playsInline
                   autoPlay={idx === currentIndex}
                   loop
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }} // Using contain to ensure full video is visible without cutoff
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
               </div>
             ))}
