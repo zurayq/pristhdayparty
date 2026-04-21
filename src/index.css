@@ -1,0 +1,93 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;700;800;900&display=swap');
+
+:root {
+  /* Countdown Mode Tokens */
+  --bg-color-1: #0f172a;
+  --bg-color-2: #1e1b4b;
+  --bg-color-3: #312e81;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent-primary: #8b5cf6;
+  --accent-secondary: #ec4899;
+  
+  --surface-color: rgba(30, 41, 59, 0.7);
+  --surface-border: rgba(148, 163, 184, 0.1);
+  --surface-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
+  /* Shared Typography */
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  background-color: var(--bg-color-1);
+}
+
+/* Celebration Mode Tokens overrides will be applied via a class on body */
+body.celebration-mode {
+  --bg-color-1: #fdf2f8;
+  --bg-color-2: #fce7f3;
+  --bg-color-3: #fbcfe8;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --accent-primary: #db2777;
+  --accent-secondary: #fb7185;
+  
+  --surface-color: rgba(255, 255, 255, 0.85);
+  --surface-border: rgba(219, 39, 119, 0.2);
+  --surface-shadow: 0 8px 32px 0 rgba(219, 39, 119, 0.15);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at top left, var(--bg-color-2), var(--bg-color-1) 70%, var(--bg-color-3));
+  transition: background 1.5s ease-in-out, color 0.5s ease-in-out;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  margin: 0;
+  font-weight: 700;
+}
+
+p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+button {
+  font-family: var(--font-heading);
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+/* Utilities */
+.glass-panel {
+  background: var(--surface-color);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--surface-shadow);
+  border-radius: 24px;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
