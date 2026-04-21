@@ -12,6 +12,8 @@ function Home() {
   const [isCelebration, setIsCelebration] = useState(() => {
     return new Date() >= new Date('2026-04-22T00:00:00+01:00');
   });
+  
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
   
   // Secret Early Access States
@@ -21,21 +23,20 @@ function Home() {
 
   const handleSecretSubmit = () => {
     if (passcode === '1234') { 
-      setIsCelebration(true);
+      setIsAuthenticated(true);
       setShowSecretPrompt(false);
     } else {
       setPasscodeError('Incorrect passcode');
     }
   };
 
-
   useEffect(() => {
-    if (isCelebration) {
+    if (isCelebration || isAuthenticated) {
       document.body.classList.add('celebration-mode');
     } else {
       document.body.classList.remove('celebration-mode');
     }
-  }, [isCelebration]);
+  }, [isCelebration, isAuthenticated]);
 
   return (
     <div className="app-container" style={{ padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', boxSizing: 'border-box' }}>
@@ -43,20 +44,25 @@ function Home() {
       {/* Dev Tools - Easy testing */}
       <div style={{ position: 'fixed', top: 10, right: 10, zIndex: 100 }}>
         <button 
-          onClick={() => setIsCelebration(!isCelebration)}
+          onClick={() => {
+            setIsCelebration(true);
+            setIsAuthenticated(true);
+          }}
           style={{ 
             background: 'rgba(0,0,0,0.5)', 
             color: 'white', 
             padding: '4px 8px', 
             borderRadius: '4px',
-            fontSize: '12px'
+            fontSize: '12px',
+            cursor: 'pointer',
+            border: 'none'
           }}
         >
-          Toggle Celebration
+          Dev: Unlock
         </button>
       </div>
 
-      {!isCelebration ? (
+      {!isCelebration && !isAuthenticated ? (
         <div style={{ maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '10vh' }}>
           <h1 className="gradient-text" style={{ fontSize: '3rem', textAlign: 'center', marginBottom: '20px' }}>
             The Big Surprise!
@@ -93,25 +99,52 @@ function Home() {
             Record Your Surprise 🎁
           </button>
         </div>
+      ) : isCelebration && !isAuthenticated ? (
+        <div style={{ maxWidth: '400px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '15vh' }}>
+          <div className="glass-panel" style={{ padding: '40px 30px', textAlign: 'center', width: '100%' }}>
+            <h2 className="gradient-text" style={{ marginBottom: '20px', fontSize: '2rem' }}>It's Time! 🎉</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '25px', fontSize: '1.1rem' }}>Enter the password to unlock the birthday videos.</p>
+            <input 
+              type="password" 
+              value={passcode} 
+              onChange={(e) => setPasscode(e.target.value)}
+              placeholder="Password"
+              style={{ width: '100%', padding: '15px', marginBottom: '15px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)', color: 'white', boxSizing: 'border-box', fontSize: '1.1rem', textAlign: 'center' }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSecretSubmit();
+              }}
+            />
+            {passcodeError && <p style={{ color: '#ef4444', marginBottom: '15px', fontSize: '1rem' }}>{passcodeError}</p>}
+            <button 
+              onClick={handleSecretSubmit} 
+              style={{ width: '100%', padding: '15px', borderRadius: '8px', background: 'var(--accent-primary)', color: 'white', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '1.1rem' }}
+            >
+              Watch Videos
+            </button>
+          </div>
+        </div>
       ) : (
         <CelebrationGallery />
       )}
 
-      {/* Secret Gallery Override Prompt */}
-      {showSecretPrompt && (
+      {/* Secret Gallery Override Prompt (during countdown) */}
+      {showSecretPrompt && !isCelebration && !isAuthenticated && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex',
           justifyContent: 'center', alignItems: 'center'
         }}>
           <div className="glass-panel" style={{ padding: '30px', textAlign: 'center', maxWidth: '300px', width: '100%' }}>
-            <h3 style={{ marginBottom: '20px', color: 'white' }}>Do you want to enter the video gallery?</h3>
+            <h3 style={{ marginBottom: '20px', color: 'white' }}>Early Access</h3>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '15px', fontSize: '0.9rem' }}>Enter passcode for early access.</p>
             <input 
               type="password" 
               value={passcode} 
               onChange={(e) => setPasscode(e.target.value)}
-              style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)', color: 'white' }}
+              style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)', color: 'white', boxSizing: 'border-box', textAlign: 'center' }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSecretSubmit();
+              }}
             />
             {passcodeError && <p style={{ color: '#ef4444', marginBottom: '10px', fontSize: '0.9rem' }}>{passcodeError}</p>}
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
